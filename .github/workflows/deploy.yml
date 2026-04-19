@@ -1,0 +1,53 @@
+name: Deploy Backend to AWS
+
+on:
+  push:
+    branches:
+      - main # Triggers the pipeline on push to the main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Grab the code from your repository
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 2. Log into Docker Hub so we can push the image
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 3. Build the Docker image and push it to Docker Hub
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/my-aws-backend:latest
+
+      # 4. SSH into your AWS EC2 instance and update the container
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Pull the latest image we just pushed
+            sudo docker pull ${{ secrets.DOCKER_USERNAME }}/my-aws-backend:latest
+            
+            # Stop the currently running container (ignore error if it doesn't exist)
+            sudo docker stop backend-api || true
+            
+            # Remove the old container
+            sudo docker rm backend-api || true
+            
+            # Run the new container, mapping server port 80 to container port 8080
+            sudo docker run -d --name backend-api -p 80:8080 ${{ secrets.DOCKER_USERNAME }}/my-aws-backend:latest
+            
+            # Optional: Clean up old unused images to save disk space on AWS
+            sudo docker image prune -f
