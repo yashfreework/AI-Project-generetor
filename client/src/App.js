@@ -13,7 +13,8 @@ function App() {
     setResult("");
 
     try {
-      const res = await fetch("http://44.200.165.60:5000/api/project/generate", {
+      // const res = await fetch("http://44.200.165.60:5000/api/project/generate", {
+      const res = await fetch("http://localhost:5000/api/project/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -22,6 +23,7 @@ function App() {
       });
 
       const data = await res.json();
+      console.log(data)
       setResult(data.result);
     } catch (err) {
       console.error(err);
